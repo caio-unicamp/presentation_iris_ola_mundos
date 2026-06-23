@@ -57,8 +57,8 @@ def processar_imagem_para_mnist(roi):
     return input_tensor, digit_padded
 
 def baixar_modelo_se_necessario(caminho_modelo="mnist-8.onnx"):
-    # URL oficial do repositório ONNX Model Zoo
-    url = "https://github.com/onnx/models/raw/main/validated/vision/classification/mnist/model/mnist-8.onnx"
+    # URL oficial do ONNX Model Zoo migrada para o huggingface
+    url = "https://huggingface.co/onnxmodelzoo/mnist-8/resolve/main/mnist-8.onnx"
     
     if not os.path.exists(caminho_modelo):
         print("Modelo ONNX não encontrado localmente.")
