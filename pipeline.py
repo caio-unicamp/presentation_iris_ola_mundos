@@ -4,15 +4,21 @@ import onnxruntime as ort
 import os
 import urllib.request
 
+
 def processar_imagem_para_mnist(roi):
-    # 1. Converter para tons de cinza e aplicar desfoque
+    """
+    Isola o desenho do papel, centraliza pelo bounding box, adiciona padding e redimensiona para 28x28 pixels, formatando o tensor para consumo do modelo ONNX.
+
+    @param roi: Região de interesse da imagem
+    """
+    # Converter para tons de cinza e aplicar desfoque
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (7, 7), 0)
     
-    # 2. Binarização de Otsu e Inversão
+    # Binarização de Otsu e Inversão
     _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    # 3. Encontrar contornos
+    # Encontrar contornos
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     if not contours:
@@ -25,7 +31,7 @@ def processar_imagem_para_mnist(roi):
     if w < 15 or h < 15:
         return None, thresh
 
-    # 4. Recortar e redimensionar mantendo a proporção (20x20)
+    # Recortar e redimensionar mantendo a proporção (20x20)
     digit = thresh[y:y+h, x:x+w]
     
     if w > h:
@@ -50,13 +56,18 @@ def processar_imagem_para_mnist(roi):
     digit_padded = cv2.copyMakeBorder(digit_resized, pad_top, pad_bottom, pad_left, pad_right, 
                                       cv2.BORDER_CONSTANT, value=0)
     
-    # 6. Normalizar para o modelo ONNX
+    # Normalizar para o modelo ONNX
     digit_normalized = digit_padded.astype(np.float32) / 255.0
     input_tensor = np.expand_dims(np.expand_dims(digit_normalized, axis=0), axis=0)
     
     return input_tensor, digit_padded
 
 def baixar_modelo_se_necessario(caminho_modelo="mnist-8.onnx"):
+    """
+    Verifica a existência do arquivo .onnx localmente e o baixa caso necessário.
+
+    @param caminho_modelo: path do modelo baixado ao rodar a pipeline
+    """
     # URL oficial do ONNX Model Zoo migrada para o huggingface
     url = "https://huggingface.co/onnxmodelzoo/mnist-8/resolve/main/mnist-8.onnx"
     
@@ -73,12 +84,15 @@ def baixar_modelo_se_necessario(caminho_modelo="mnist-8.onnx"):
     return True
 
 def main():
-    # 1. Garante que o modelo está baixado
+    """
+    Gerencia o loop de captura de vídeo, a interface gráfica do OpenCV e a inferência.
+    """
+    # Garante que o modelo está baixado
     if not baixar_modelo_se_necessario("mnist-8.onnx"):
-        print("Não foi possível obter o modelo. Encerrando.")
+        print("Não foi possível obter o modelo. Encerrando...")
         return
 
-    # 2. Carrega o modelo pré-treinado
+    # Carrega o modelo pré-treinado
     try:
         session = ort.InferenceSession("mnist-8.onnx")
         input_name = session.get_inputs()[0].name
