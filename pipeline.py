@@ -101,12 +101,33 @@ def main():
         return
     # Inicia a webcam
     indice_camera = 0 
-    cap = cv2.VideoCapture(indice_camera)
+    cap = cv2.VideoCapture(indice_camera, cv2.CAP_DSHOW)
 
     if not cap.isOpened():
         print(f"ERRO: Não foi possível acessar a câmera no índice {indice_camera}.")
         print("Verifique se ela está conectada, se não está sendo usada por outro app, ou tente outro índice.")
         return
+
+    # Configuração inicial da janela
+    cv2.namedWindow("IA vs Alunos", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("IA vs Alunos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    # Variável para controlar o estado da tela cheia
+    estado_tela_cheia = [True]
+    # Função que capta os cliques do mouse
+    def evento_mouse(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Verifica se o clique foi dentro da área do botão (x entre 10 e 180, y entre 10 e 50)
+            if 10 <= x <= 180 and 10 <= y <= 50:
+                estado_tela_cheia[0] = not estado_tela_cheia[0] # Inverte o estado
+                
+                if estado_tela_cheia[0]:
+                    cv2.setWindowProperty("IA vs Alunos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                else:
+                    cv2.setWindowProperty("IA vs Alunos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+
+    # Conecta o mouse à janela
+    cv2.setMouseCallback("IA vs Alunos", evento_mouse)
 
     while True:
         ret, frame = cap.read()
@@ -114,7 +135,6 @@ def main():
             break
 
         # Espelhar a imagem para agir como um espelho natural
-        frame = cv2.flip(frame, 1)
         height, width, _ = frame.shape
 
         # Definir a zona de escaneamento (ROI) no centro da tela
@@ -132,6 +152,13 @@ def main():
         cv2.putText(frame, "ZONA DE ESCANEAMENTO", (x_start, y_start - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
+        # Botão de tela cheia
+        cv2.rectangle(frame, (10, 10), (180, 50), (220, 220, 220), -1) # Fundo do botão
+        cv2.rectangle(frame, (10, 10), (180, 50), (50, 50, 50), 2)     # Borda do botão
+        
+        texto_botao = "MODO JANELA" if estado_tela_cheia[0] else "TELA CHEIA"
+        cv2.putText(frame, texto_botao, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+
         # Processar a imagem recortada
         input_tensor, imagem_debug = processar_imagem_para_mnist(roi)
 
@@ -148,7 +175,7 @@ def main():
 
             # Exibir o palpite e a certeza da IA apenas se tiver confiança razoável
             if confidence > 30:
-                texto_resultado = f"Acho que e o numero: {prediction}"
+                texto_resultado = f"Acho que é o numero: {prediction}"
                 texto_confianca = f"Certeza: {confidence:.1f}%"
                 
                 # Cor dinâmica: Verde se tem certeza, Laranja se está em dúvida
