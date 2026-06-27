@@ -3,7 +3,29 @@ import numpy as np
 import onnxruntime as ort
 import os
 import urllib.request
+from PIL import Image, ImageDraw, ImageFont
 
+def caracteres_especiais(img, texto, posicao, cor_bgr, tamanho=32):
+    """Desenha textos com acentuação usando as fontes nativas do sistema."""
+    # Converter a imagem do OpenCV (BGR) para o formato do Pillow (RGB)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_pil = Image.fromarray(img_rgb)
+    draw = ImageDraw.Draw(img_pil)
+    
+    # Tenta usar a fonte Arial do Windows. Se falhar, usa a fonte padrão.
+    try:
+        fonte = ImageFont.truetype("arial.ttf", tamanho)
+    except IOError:
+        fonte = ImageFont.load_default()
+        
+    # O OpenCV usa BGR, mas o Pillow espera RGB. Invertemos as cores aqui.
+    cor_rgb = (cor_bgr[2], cor_bgr[1], cor_bgr[0])
+    
+    # O Pillow usa o canto superior esquerdo como referência (x, y)
+    draw.text(posicao, texto, font=fonte, fill=cor_rgb)
+    
+    # Converte de volta para o formato do OpenCV
+    return cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
 def processar_imagem_para_mnist(roi):
     """
@@ -158,18 +180,29 @@ def main():
 
         # Desenhar a interface na tela principal
         cv2.rectangle(frame, (x_start, y_start), (x_end, y_end), (0, 255, 0), 2)
-        cv2.putText(frame, "ZONA DE ESCANEAMENTO", (x_start, y_start - 10),
+        cv2.putText(frame, "ZONA DE ESCANEAMENTO", (x_start, y_end + 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         # Botão de tela cheia
-        y1_botao = height - 50
-        y2_botao = height - 10
+        x1_botao, x2_botao = 10, 180
+        y1_botao, y2_botao = height - 50, height - 10
         
-        cv2.rectangle(frame, (10, y1_botao), (180, y2_botao), (220, 220, 220), -1) # Fundo do botão
-        cv2.rectangle(frame, (10, y1_botao), (180, y2_botao), (50, 50, 50), 2)     # Borda do botão
+        cv2.rectangle(frame, (x1_botao, y1_botao), (x2_botao, y2_botao), (220, 220, 220), -1) 
+        cv2.rectangle(frame, (x1_botao, y1_botao), (x2_botao, y2_botao), (50, 50, 50), 2)     
         
         texto_botao = "MODO JANELA" if estado_tela_cheia[0] else "TELA CHEIA"
-        cv2.putText(frame, texto_botao, (20, height - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        fonte_botao = cv2.FONT_HERSHEY_SIMPLEX
+        escala_botao = 0.5
+        esp_botao = 2
+        
+        # Pega a largura e altura do texto em pixels
+        (largura_texto, altura_texto), _ = cv2.getTextSize(texto_botao, fonte_botao, escala_botao, esp_botao)
+        
+        # Calcula a coordenada X e Y exata para centralizar
+        x_texto = x1_botao + ((x2_botao - x1_botao) - largura_texto) // 2
+        y_texto = y1_botao + ((y2_botao - y1_botao) + altura_texto) // 2
+        
+        cv2.putText(frame, texto_botao, (x_texto, y_texto), fonte_botao, escala_botao, (0, 0, 0), esp_botao)
 
         # Processar a imagem recortada
         input_tensor, imagem_debug = processar_imagem_para_mnist(roi)
@@ -187,17 +220,17 @@ def main():
 
             # Exibir o palpite e a certeza da IA apenas se tiver confiança razoável
             if confidence > 30:
-                texto_resultado = f"Acho que é o numero: {prediction}"
+                texto_resultado = f"Acho que é o número: {prediction}"
                 texto_confianca = f"Certeza: {confidence:.1f}%"
                 
                 # Cor dinâmica: Verde se tem certeza, Laranja se está em dúvida
                 cor = (0, 255, 0) if confidence > 80 else (0, 165, 255)
-                
-                cv2.putText(frame, texto_resultado, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, cor, 3)
-                cv2.putText(frame, texto_confianca, (30, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, cor, 2)
 
+                frame = caracteres_especiais(frame, texto_resultado, (15, 15), cor, tamanho=36)
+                frame = caracteres_especiais(frame, texto_confianca, (30, 80), cor, tamanho=26)
+                
             # Exibir a "Visão da IA" no canto da tela
-            # Redimensiona o 28x28 para 150x150 sem borrar (INTER_NEAREST) para dar efeito de pixel art
+            # Redimensiona o 28x28 para 150x150 sem borrar para dar efeito de pixel art
             debug_resized = cv2.resize(imagem_debug, (150, 150), interpolation=cv2.INTER_NEAREST)
             debug_colored = cv2.cvtColor(debug_resized, cv2.COLOR_GRAY2BGR)
             
