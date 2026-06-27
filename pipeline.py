@@ -122,7 +122,7 @@ def main():
         print(f"Erro ao carregar o modelo ONNX: {e}")
         return
     # Inicia a webcam
-    indice_camera = 0 
+    indice_camera = 1
     cap = cv2.VideoCapture(indice_camera, cv2.CAP_DSHOW)
 
     if not cap.isOpened():
@@ -136,7 +136,8 @@ def main():
         print("Erro ao capturar imagem da câmera.")
         return
 
-    h_cam, w_cam, _ = frame_teste.shape
+    h_cam, w_cam_total, _ = frame_teste.shape
+    w_cam = w_cam_total//2
 
     # Configuração inicial da janela
     cv2.namedWindow("IA vs Alunos", cv2.WINDOW_NORMAL)
@@ -161,10 +162,14 @@ def main():
     cv2.setMouseCallback("IA vs Alunos", evento_mouse)
 
     while True:
-        ret, frame = cap.read()
+        ret, frame_raw = cap.read()
         if not ret:
             break
 
+        # Ignorar o olho direito da ZED para não distorcer a interface
+        largura_total = frame_raw.shape[1]
+        frame = frame_raw[:, :largura_total // 2]
+        
         # Espelhar a imagem para agir como um espelho natural
         height, width, _ = frame.shape
 
