@@ -108,17 +108,26 @@ def main():
         print("Verifique se ela está conectada, se não está sendo usada por outro app, ou tente outro índice.")
         return
 
+    # Lê um frame de teste para descobrir a resolução padrão real da câmera
+    ret, frame_teste = cap.read()
+    if not ret:
+        print("Erro ao capturar imagem da câmera.")
+        return
+
+    h_cam, w_cam, _ = frame_teste.shape
+
     # Configuração inicial da janela
     cv2.namedWindow("IA vs Alunos", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("IA vs Alunos", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.resizeWindow("IA vs Alunos", w_cam, h_cam)
 
     # Variável para controlar o estado da tela cheia
-    estado_tela_cheia = [True]
+    estado_tela_cheia = [False]
+
     # Função que capta os cliques do mouse
     def evento_mouse(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             # Verifica se o clique foi dentro da área do botão (x entre 10 e 180, y entre 10 e 50)
-            if 10 <= x <= 180 and 10 <= y <= 50:
+            if 10 <= x <= 180 and (h_cam - 50) <= y <= (h_cam - 10) :
                 estado_tela_cheia[0] = not estado_tela_cheia[0] # Inverte o estado
                 
                 if estado_tela_cheia[0]:
@@ -153,11 +162,14 @@ def main():
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         # Botão de tela cheia
-        cv2.rectangle(frame, (10, 10), (180, 50), (220, 220, 220), -1) # Fundo do botão
-        cv2.rectangle(frame, (10, 10), (180, 50), (50, 50, 50), 2)     # Borda do botão
+        y1_botao = height - 50
+        y2_botao = height - 10
+        
+        cv2.rectangle(frame, (10, y1_botao), (180, y2_botao), (220, 220, 220), -1) # Fundo do botão
+        cv2.rectangle(frame, (10, y1_botao), (180, y2_botao), (50, 50, 50), 2)     # Borda do botão
         
         texto_botao = "MODO JANELA" if estado_tela_cheia[0] else "TELA CHEIA"
-        cv2.putText(frame, texto_botao, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(frame, texto_botao, (20, height - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
         # Processar a imagem recortada
         input_tensor, imagem_debug = processar_imagem_para_mnist(roi)
